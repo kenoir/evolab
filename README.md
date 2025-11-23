@@ -1,6 +1,6 @@
 # EvoLab - Next.js Edition
 
-A high-performance biological simulation running in the browser, migrated to Next.js.
+An evolution game (barely) ...
 
 **Live Demo:** [https://kenoir.github.io/evolab/](https://kenoir.github.io/evolab/)
 
