@@ -4,6 +4,8 @@ An evolution game (barely) ...
 
 **Live Demo:** [https://kenoir.github.io/evolab/](https://kenoir.github.io/evolab/)
 
+![EvoLab Screenshot](./game_demo.gif)
+
 ## Features
 - **Evolutionary Simulation**: Organisms evolve traits (speed, size, sense) over generations.
 - **High Performance**: Uses Structure of Arrays (SoA) and spatial hashing for efficient collision detection.
