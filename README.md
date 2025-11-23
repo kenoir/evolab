@@ -10,7 +10,6 @@ An evolution game (barely) ...
 - **Evolutionary Simulation**: Organisms evolve traits (speed, size, sense) over generations.
 - **High Performance**: Uses Structure of Arrays (SoA) and spatial hashing for efficient collision detection.
 - **Interactive**: Zoom, pan, and spawn creatures with touch/mouse.
-- **Next.js Integration**: Wrapped in a modern React application structure.
 
 ## Getting Started
 
