@@ -11,6 +11,8 @@ interface ControlsPanelProps {
     onToggleDebug: (value: boolean) => void;
     isPaused: boolean;
     onTogglePause: () => void;
+    isFollowing: boolean;
+    onToggleFollow: (value: boolean) => void;
 }
 
 export const ControlsPanel: React.FC<ControlsPanelProps> = ({
@@ -22,7 +24,9 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
     onToggleZones,
     onToggleDebug,
     isPaused,
-    onTogglePause
+    onTogglePause,
+    isFollowing,
+    onToggleFollow
 }) => {
     const [collapsed, setCollapsed] = React.useState(false);
 
@@ -44,6 +48,17 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
                     >
                         {isPaused ? 'RESUME' : 'PAUSE'}
                     </button>
+
+                    <div className="flex items-center mb-2 bg-gray-800 p-2 rounded border border-gray-700">
+                        <input 
+                            type="checkbox" 
+                            id="follow-toggle" 
+                            className="w-4 h-4 accent-blue-500 mr-2 cursor-pointer" 
+                            checked={isFollowing}
+                            onChange={(e) => onToggleFollow(e.target.checked)}
+                        />
+                        <label htmlFor="follow-toggle" className="text-blue-300 font-bold cursor-pointer ml-1">Follow Organism</label>
+                    </div>
 
                     <label className="block text-[10px] uppercase text-gray-500 mb-1">World Size</label>
                 <select 

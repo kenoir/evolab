@@ -60,10 +60,12 @@ export class GameEngine {
     public debugMode = false;
     public predationActive = true;
     public activeZones = true;
+    public paused = false;
     
     private lastTime = 0;
     private frameCount = 0;
     private animationId: number | null = null;
+    private onFollowChange: ((isFollowing: boolean) => void) | null = null;
 
     // Camera
     public camera = { x: 0, y: 0, zoom: 0.5 };
@@ -134,12 +136,13 @@ export class GameEngine {
     private hDefense: Int32Array;
     private histContexts: { [key: string]: CanvasRenderingContext2D | null } = {};
 
-    constructor(canvas: HTMLCanvasElement, minimap: HTMLCanvasElement, statsRefs: GameStatsRefs) {
+    constructor(canvas: HTMLCanvasElement, minimap: HTMLCanvasElement, statsRefs: GameStatsRefs, onFollowChange?: (isFollowing: boolean) => void) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d', { alpha: false }) as CanvasRenderingContext2D;
         this.minimap = minimap;
         this.miniCtx = minimap.getContext('2d') as CanvasRenderingContext2D;
         this.statsRefs = statsRefs;
+        this.onFollowChange = onFollowChange || null;
 
         // Initialize Arrays
         this.oX = new Float32Array(this.MAX_POP);
@@ -224,6 +227,7 @@ export class GameEngine {
     }
 
     public start() {
+        this.paused = false;
         if (!this.animationId) {
             this.lastTime = performance.now();
             this.animate(this.lastTime);
@@ -231,10 +235,7 @@ export class GameEngine {
     }
 
     public stop() {
-        if (this.animationId) {
-            cancelAnimationFrame(this.animationId);
-            this.animationId = null;
-        }
+        this.paused = true;
     }
 
     public resize(width: number, height: number) {
@@ -363,6 +364,27 @@ export class GameEngine {
     }
 
     private killOrganism(idx: number) {
+        if (idx === this.followedIndex) {
+            // Find nearest living organism
+            let bestDist = Infinity;
+            let bestIdx = -1;
+            
+            for(let i=0; i<this.MAX_POP; i++) {
+                if (i !== idx && this.oActive[i]) {
+                    const dSq = this.getWrappedDistSq(this.oX[idx], this.oY[idx], this.oX[i], this.oY[i]);
+                    if (dSq < bestDist) {
+                        bestDist = dSq;
+                        bestIdx = i;
+                    }
+                }
+            }
+            
+            this.followedIndex = bestIdx;
+            if (this.onFollowChange) {
+                this.onFollowChange(this.followedIndex !== -1);
+            }
+        }
+
         this.oActive[idx] = 0;
         this.oFree[++this.oFreePtr] = idx;
         this.activeCount--;
@@ -656,11 +678,49 @@ export class GameEngine {
 
         if (clickedOrg !== -1) {
             this.followedIndex = clickedOrg;
+            if (this.onFollowChange) this.onFollowChange(true);
+            this.draw(); // Force redraw to show selection immediately
             return;
         }
 
         this.followedIndex = -1;
+        if (this.onFollowChange) this.onFollowChange(false);
+        
         for(let i=0; i<3; i++) this.spawnFood(wx + (Math.random()-0.5)*50, wy + (Math.random()-0.5)*50);
+        this.draw(); // Force redraw
+    }
+
+    public toggleFollowMode(enable: boolean) {
+        if (enable) {
+            if (this.followedIndex === -1) {
+                // Find organism closest to center of screen
+                const viewW = this.canvas.width / this.camera.zoom;
+                const viewH = this.canvas.height / this.camera.zoom;
+                const cx = this.camera.x + viewW/2;
+                const cy = this.camera.y + viewH/2;
+                
+                let bestDist = Infinity;
+                let bestIdx = -1;
+                
+                for(let i=0; i<this.MAX_POP; i++) {
+                    if (this.oActive[i]) {
+                        const dSq = this.getWrappedDistSq(cx, cy, this.oX[i], this.oY[i]);
+                        if (dSq < bestDist) {
+                            bestDist = dSq;
+                            bestIdx = i;
+                        }
+                    }
+                }
+                this.followedIndex = bestIdx;
+            }
+        } else {
+            this.followedIndex = -1;
+        }
+        
+        if (this.onFollowChange) {
+            this.onFollowChange(this.followedIndex !== -1);
+        }
+        this.draw();
     }
 
     private updateHistograms() {
@@ -864,17 +924,20 @@ export class GameEngine {
         this.lastTime = time;
         
         this.processInput();
-        this.updateEnvironment();
-    
-        for (let s = 0; s < this.simSpeed; s++) {
-            this.updateGrid(); 
-            if (Math.random() < 0.3) { let p = this.getBiasedSpawnPos(); this.spawnFood(p.x, p.y); }
-            this.physicsStep();
-        }
         
-        if (this.activeCount === 0 && this.frameCount % 60 === 0) { 
-            for(let i=0; i<10; i++) this.spawnOrganism(Math.random() * this.worldSize, Math.random() * this.worldSize);
-            this.spawnRandomFood(50); 
+        if (!this.paused) {
+            this.updateEnvironment();
+        
+            for (let s = 0; s < this.simSpeed; s++) {
+                this.updateGrid(); 
+                if (Math.random() < 0.3) { let p = this.getBiasedSpawnPos(); this.spawnFood(p.x, p.y); }
+                this.physicsStep();
+            }
+            
+            if (this.activeCount === 0 && this.frameCount % 60 === 0) { 
+                for(let i=0; i<10; i++) this.spawnOrganism(Math.random() * this.worldSize, Math.random() * this.worldSize);
+                this.spawnRandomFood(50); 
+            }
         }
     
         this.draw();

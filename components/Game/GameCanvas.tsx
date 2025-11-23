@@ -25,6 +25,7 @@ export default function GameCanvas() {
 
     const [isPaused, setIsPaused] = React.useState(false);
     const [ambientMode, setAmbientMode] = React.useState(false);
+    const [isFollowing, setIsFollowing] = React.useState(false);
 
     const togglePause = React.useCallback(() => {
         if (!engineRef.current) return;
@@ -36,6 +37,12 @@ export default function GameCanvas() {
             setIsPaused(true);
         }
     }, [isPaused]);
+
+    const toggleFollow = React.useCallback((enable: boolean) => {
+        if (!engineRef.current) return;
+        engineRef.current.toggleFollowMode(enable);
+        // State update will happen via callback
+    }, []);
 
     useEffect(() => {
         if (!containerRef.current || !canvasRef.current || !minimapRef.current) return;
@@ -54,7 +61,8 @@ export default function GameCanvas() {
                 histStorage: histStorageRef.current,
                 histMeta: histMetaRef.current,
                 histDefense: histDefenseRef.current,
-            }
+            },
+            (following) => setIsFollowing(following)
         );
 
         engineRef.current = engine;
@@ -234,6 +242,8 @@ export default function GameCanvas() {
                         onToggleDebug={(v) => { if(engineRef.current) engineRef.current.debugMode = v; }}
                         isPaused={isPaused}
                         onTogglePause={togglePause}
+                        isFollowing={isFollowing}
+                        onToggleFollow={toggleFollow}
                     />
                 </div>
                 

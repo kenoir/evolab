@@ -59,13 +59,13 @@ describe('GameEngine', () => {
     it('should start and stop animation', () => {
         const engine = new GameEngine(canvas, minimap, statsRefs);
         jest.spyOn(window, 'requestAnimationFrame').mockReturnValue(123);
-        jest.spyOn(window, 'cancelAnimationFrame');
-
+        
         engine.start();
         expect(window.requestAnimationFrame).toHaveBeenCalled();
+        expect(engine.paused).toBe(false);
 
         engine.stop();
-        expect(window.cancelAnimationFrame).toHaveBeenCalledWith(123);
+        expect(engine.paused).toBe(true);
     });
 
     it('should handle resize', () => {
