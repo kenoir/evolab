@@ -2,6 +2,8 @@
 
 A high-performance biological simulation running in the browser, migrated to Next.js.
 
+**Live Demo:** [https://kenoir.github.io/evolab/](https://kenoir.github.io/evolab/)
+
 ## Features
 - **Evolutionary Simulation**: Organisms evolve traits (speed, size, sense) over generations.
 - **High Performance**: Uses Structure of Arrays (SoA) and spatial hashing for efficient collision detection.
@@ -34,4 +36,9 @@ See `AGENT_INSTRUCTIONS.md` for more details on the codebase structure.
 
 ## Deployment
 This project is configured for static export to GitHub Pages.
+
+
+## CI/CD
+- **Tests**: Runs on every push and pull request via GitHub Actions.
+- **Deployment**: Automatically deploys to GitHub Pages on push to `main`.
 
