@@ -9,6 +9,8 @@ interface ControlsPanelProps {
     onTogglePredation: (value: boolean) => void;
     onToggleZones: (value: boolean) => void;
     onToggleDebug: (value: boolean) => void;
+    isPaused: boolean;
+    onTogglePause: () => void;
 }
 
 export const ControlsPanel: React.FC<ControlsPanelProps> = ({
@@ -18,13 +20,22 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
     onWorldSizeChange,
     onTogglePredation,
     onToggleZones,
-    onToggleDebug
+    onToggleDebug,
+    isPaused,
+    onTogglePause
 }) => {
     return (
         <div className="stat-card p-3 rounded-lg shadow-xl text-xs hidden md:block scrollable-y w-48 max-h-[calc(100vh-200px)] bg-gray-900/95 backdrop-blur-sm border border-gray-800 overflow-y-auto">
             <div className="font-bold mb-2 text-gray-300 border-b border-gray-600 pb-1">Configuration</div>
             
             <div className="mb-3">
+                <button 
+                    onClick={onTogglePause}
+                    className={`w-full mb-2 px-3 py-1 rounded transition font-bold ${isPaused ? 'bg-green-600 hover:bg-green-500 text-white' : 'bg-yellow-600 hover:bg-yellow-500 text-white'}`}
+                >
+                    {isPaused ? 'RESUME' : 'PAUSE'}
+                </button>
+
                 <label className="block text-[10px] uppercase text-gray-500 mb-1">World Size</label>
                 <select 
                     onChange={(e) => onWorldSizeChange(parseInt(e.target.value))}

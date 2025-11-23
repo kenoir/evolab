@@ -22,6 +22,19 @@ export default function GameCanvas() {
     const histMetaRef = useRef<HTMLCanvasElement>(null);
     const histDefenseRef = useRef<HTMLCanvasElement>(null);
 
+    const [isPaused, setIsPaused] = React.useState(false);
+
+    const togglePause = React.useCallback(() => {
+        if (!engineRef.current) return;
+        if (isPaused) {
+            engineRef.current.start();
+            setIsPaused(false);
+        } else {
+            engineRef.current.stop();
+            setIsPaused(true);
+        }
+    }, [isPaused]);
+
     useEffect(() => {
         if (!canvasRef.current || !minimapRef.current) return;
 
@@ -52,7 +65,9 @@ export default function GameCanvas() {
         handleResize(); // Initial resize
 
         // Keyboard listeners
-        const handleKeyDown = (e: KeyboardEvent) => engine.handleKeyDown(e.code);
+        const handleKeyDown = (e: KeyboardEvent) => {
+            engine.handleKeyDown(e.code);
+        };
         const handleKeyUp = (e: KeyboardEvent) => engine.handleKeyUp(e.code);
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('keyup', handleKeyUp);
@@ -65,12 +80,46 @@ export default function GameCanvas() {
         };
     }, []);
 
+    // Separate effect for Space key to access current state/toggle function correctly
+    useEffect(() => {
+        const handleSpace = (e: KeyboardEvent) => {
+            if (e.code === 'Space') {
+                togglePause();
+            }
+        };
+        window.addEventListener('keydown', handleSpace);
+        return () => window.removeEventListener('keydown', handleSpace);
+    }, [togglePause]);
+
     // Input Handlers
     const isDragging = useRef(false);
     const lastMouse = useRef({ x: 0, y: 0 });
     const dragDistance = useRef(0);
     const initialPinchDist = useRef(0);
     const initialZoom = useRef(1);
+
+    const onMinimapClick = (e: React.MouseEvent) => {
+        if (!engineRef.current || !minimapRef.current) return;
+        const rect = minimapRef.current.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        // Minimap canvas width is fixed at 120 in the JSX below, but let's use the actual width
+        const scale = minimapRef.current.width / engineRef.current.worldSize;
+        const worldX = x / scale;
+        const worldY = y / scale;
+        
+        // We need to access the canvas from the engine or ref
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const viewW = canvas.width / engineRef.current.camera.zoom;
+        const viewH = canvas.height / engineRef.current.camera.zoom;
+        
+        engineRef.current.camera.x = worldX - viewW / 2;
+        engineRef.current.camera.y = worldY - viewH / 2;
+        engineRef.current.clampCamera();
+    };
 
     const onMouseDown = (e: React.MouseEvent) => {
         isDragging.current = true;
@@ -171,12 +220,19 @@ export default function GameCanvas() {
                         onTogglePredation={(v) => { if(engineRef.current) engineRef.current.predationActive = v; }}
                         onToggleZones={(v) => { if(engineRef.current) engineRef.current.activeZones = v; }}
                         onToggleDebug={(v) => { if(engineRef.current) engineRef.current.debugMode = v; }}
+                        isPaused={isPaused}
+                        onTogglePause={togglePause}
                     />
                 </div>
                 
                 <div className="absolute bottom-4 right-4 pointer-events-auto flex flex-col items-end gap-2">
                     <div className="text-[10px] text-gray-500 uppercase tracking-widest">Minimap</div>
-                    <canvas ref={minimapRef} width="120" height="120" className="rounded shadow-lg bg-black/50 backdrop-blur-sm"></canvas>
+                    <canvas 
+                        ref={minimapRef} 
+                        width="120" height="120" 
+                        className="rounded shadow-lg bg-black/50 backdrop-blur-sm cursor-pointer"
+                        onClick={onMinimapClick}
+                    ></canvas>
                 </div>
             </div>
 
