@@ -20,8 +20,8 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({
     const [collapsed, setCollapsed] = useState(false);
 
     return (
-        <div className="flex flex-wrap justify-between items-start gap-4 pointer-events-auto">
-            <div className={`stat-card p-3 rounded-lg shadow-xl w-64 bg-gray-900/95 backdrop-blur-sm border border-gray-800 transition-all duration-300 ${collapsed ? 'h-auto' : ''}`}>
+        <div className="flex flex-wrap justify-between items-start gap-4">
+            <div className={`pointer-events-auto stat-card p-3 rounded-lg shadow-xl w-64 bg-gray-900/95 backdrop-blur-sm border border-gray-800 transition-all duration-300 ${collapsed ? 'h-auto' : ''}`}>
                 <div 
                     className="flex justify-between items-center mb-2 cursor-pointer" 
                     onClick={() => setCollapsed(!collapsed)}
@@ -50,7 +50,7 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({
             </div>
 
             {/* FPS & Status */}
-            <div className="stat-card p-3 rounded-lg shadow-xl flex gap-6 items-center h-fit bg-gray-900/95 backdrop-blur-sm border border-gray-800">
+            <div className="pointer-events-auto stat-card p-3 rounded-lg shadow-xl flex gap-6 items-center h-fit bg-gray-900/95 backdrop-blur-sm border border-gray-800">
                  <div className="text-center">
                     <div className="text-[10px] text-gray-500 uppercase">Active Zones</div>
                     <div ref={zoneRef} className="text-lg font-bold text-purple-400">0</div>

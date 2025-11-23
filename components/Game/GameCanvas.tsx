@@ -6,6 +6,7 @@ import { StatsPanel } from './StatsPanel';
 import { ControlsPanel } from './ControlsPanel';
 
 export default function GameCanvas() {
+    const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const minimapRef = useRef<HTMLCanvasElement>(null);
     const engineRef = useRef<GameEngine | null>(null);
@@ -36,7 +37,7 @@ export default function GameCanvas() {
     }, [isPaused]);
 
     useEffect(() => {
-        if (!canvasRef.current || !minimapRef.current) return;
+        if (!containerRef.current || !canvasRef.current || !minimapRef.current) return;
 
         const engine = new GameEngine(
             canvasRef.current,
@@ -58,11 +59,18 @@ export default function GameCanvas() {
         engineRef.current = engine;
         engine.start();
 
-        const handleResize = () => {
-            engine.resize(window.innerWidth, window.innerHeight);
-        };
-        window.addEventListener('resize', handleResize);
-        handleResize(); // Initial resize
+        const resizeObserver = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                // Use contentRect for precise pixel size of the container
+                const { width, height } = entry.contentRect;
+                // Ensure we align with the pixel grid
+                // For now, we stick to 1:1 CSS pixel mapping to avoid logic complexity,
+                // but we ensure the canvas buffer matches the container's CSS size exactly.
+                engine.resize(width, height);
+            }
+        });
+
+        resizeObserver.observe(containerRef.current);
 
         // Keyboard listeners
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -74,7 +82,7 @@ export default function GameCanvas() {
 
         return () => {
             engine.stop();
-            window.removeEventListener('resize', handleResize);
+            resizeObserver.disconnect();
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
         };
@@ -203,10 +211,10 @@ export default function GameCanvas() {
     };
 
     return (
-        <div className="relative w-full h-screen overflow-hidden bg-[#1a1a1a] text-[#e0e0e0] font-sans select-none">
+        <div ref={containerRef} className="relative w-full h-screen overflow-hidden bg-[#1a1a1a] text-[#e0e0e0] font-sans select-none">
             {/* UI Layer */}
             <div className="absolute top-0 left-0 w-full h-full pointer-events-none flex flex-col justify-between p-4 z-20">
-                <div className="flex flex-wrap justify-between items-start gap-4 pointer-events-auto">
+                <div className="flex flex-wrap justify-between items-start gap-4">
                     <StatsPanel 
                         fpsRef={fpsRef} popRef={popRef} foodRef={foodRef} zoneRef={zoneRef}
                         histSpeedRef={histSpeedRef} histSizeRef={histSizeRef} histSenseRef={histSenseRef}
@@ -238,7 +246,8 @@ export default function GameCanvas() {
 
             <canvas 
                 ref={canvasRef}
-                className="z-10 cursor-move block"
+                className="z-10 cursor-move block w-full h-full touch-none"
+                style={{ width: '100%', height: '100%' }}
                 onMouseDown={onMouseDown}
                 onMouseMove={onMouseMove}
                 onMouseUp={onMouseUp}

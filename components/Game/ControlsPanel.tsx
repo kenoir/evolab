@@ -25,7 +25,7 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
     onTogglePause
 }) => {
     return (
-        <div className="stat-card p-3 rounded-lg shadow-xl text-xs hidden md:block scrollable-y w-48 max-h-[calc(100vh-200px)] bg-gray-900/95 backdrop-blur-sm border border-gray-800 overflow-y-auto">
+        <div className="pointer-events-auto stat-card p-3 rounded-lg shadow-xl text-xs hidden md:block scrollable-y w-48 max-h-[calc(100vh-200px)] bg-gray-900/95 backdrop-blur-sm border border-gray-800 overflow-y-auto">
             <div className="font-bold mb-2 text-gray-300 border-b border-gray-600 pb-1">Configuration</div>
             
             <div className="mb-3">
