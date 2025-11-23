@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from 'react';
 import { GameEngine } from '@/lib/simulation/GameEngine';
 import { StatsPanel } from './StatsPanel';
 import { ControlsPanel } from './ControlsPanel';
+import { WelcomeModal } from './WelcomeModal';
 
 export default function GameCanvas() {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -26,6 +27,7 @@ export default function GameCanvas() {
     const [isPaused, setIsPaused] = React.useState(false);
     const [ambientMode, setAmbientMode] = React.useState(false);
     const [isFollowing, setIsFollowing] = React.useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const togglePause = React.useCallback(() => {
         if (!engineRef.current) return;
@@ -43,6 +45,70 @@ export default function GameCanvas() {
         engineRef.current.toggleFollowMode(enable);
         // State update will happen via callback
     }, []);
+
+    const handleSaveFile = () => {
+        if (!engineRef.current) return;
+        const state = engineRef.current.exportState();
+        const blob = new Blob([JSON.stringify(state)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `evolab-save-${new Date().toISOString().slice(0,10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const handleLoadFile = () => {
+        if (fileInputRef.current) fileInputRef.current.click();
+    };
+
+    const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !engineRef.current) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            try {
+                const json = ev.target?.result as string;
+                const state = JSON.parse(json);
+                engineRef.current?.importState(state);
+                setIsPaused(engineRef.current?.paused || false);
+            } catch (err) {
+                console.error("Failed to load save file", err);
+                alert("Invalid save file");
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+    };
+
+    const handleQuickSave = () => {
+        if (!engineRef.current) return;
+        try {
+            const state = engineRef.current.exportState();
+            localStorage.setItem('evolab_quicksave', JSON.stringify(state));
+            alert("Game Saved!");
+        } catch (e) {
+            console.error("Quick save failed", e);
+            alert("Save failed: Storage quota exceeded?");
+        }
+    };
+
+    const handleQuickLoad = () => {
+        if (!engineRef.current) return;
+        const json = localStorage.getItem('evolab_quicksave');
+        if (json) {
+            try {
+                const state = JSON.parse(json);
+                engineRef.current.importState(state);
+                setIsPaused(engineRef.current.paused);
+            } catch (e) {
+                console.error(e);
+                alert("Corrupt save data");
+            }
+        } else {
+            alert("No quick save found");
+        }
+    };
 
     useEffect(() => {
         if (!containerRef.current || !canvasRef.current || !minimapRef.current) return;
@@ -225,6 +291,7 @@ export default function GameCanvas() {
     return (
         <div ref={containerRef} className="relative w-full h-screen overflow-hidden bg-[#1a1a1a] text-[#e0e0e0] font-sans select-none">
             {/* UI Layer */}
+            <WelcomeModal onStart={() => {}} />
             <div className={`absolute top-0 left-0 w-full h-full pointer-events-none flex flex-col justify-between p-4 z-20 transition-opacity duration-500 ${ambientMode ? 'opacity-0' : 'opacity-100'}`}>
                 <div className="flex flex-wrap justify-between items-start gap-4">
                     <StatsPanel 
@@ -244,8 +311,20 @@ export default function GameCanvas() {
                         onTogglePause={togglePause}
                         isFollowing={isFollowing}
                         onToggleFollow={toggleFollow}
+                        onSave={handleSaveFile}
+                        onLoad={handleLoadFile}
+                        onQuickSave={handleQuickSave}
+                        onQuickLoad={handleQuickLoad}
                     />
                 </div>
+                
+                <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={onFileChange} 
+                    className="hidden" 
+                    accept=".json"
+                />
                 
                 <div className="absolute bottom-4 right-4 pointer-events-auto flex flex-col items-end gap-2">
                     <div className="text-[10px] text-gray-500 uppercase tracking-widest">Minimap</div>

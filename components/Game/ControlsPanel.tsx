@@ -13,6 +13,10 @@ interface ControlsPanelProps {
     onTogglePause: () => void;
     isFollowing: boolean;
     onToggleFollow: (value: boolean) => void;
+    onSave: () => void;
+    onLoad: () => void;
+    onQuickSave: () => void;
+    onQuickLoad: () => void;
 }
 
 export const ControlsPanel: React.FC<ControlsPanelProps> = ({
@@ -26,7 +30,11 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
     isPaused,
     onTogglePause,
     isFollowing,
-    onToggleFollow
+    onToggleFollow,
+    onSave,
+    onLoad,
+    onQuickSave,
+    onQuickLoad
 }) => {
     const [collapsed, setCollapsed] = React.useState(false);
 
@@ -166,10 +174,25 @@ export const ControlsPanel: React.FC<ControlsPanelProps> = ({
                     onChange={(e) => onConfigChange('baseMetabolism', (parseInt(e.target.value)/100)*0.01)}
                 />
             </div>
-            <div className="mt-3 text-right">
+            <div className="mt-3 pt-3 border-t border-gray-700">
+                <label className="block text-gray-500 text-[10px] uppercase mb-2">Session</label>
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                    <button onClick={onQuickSave} className="bg-blue-900/50 hover:bg-blue-800 text-blue-100 px-2 py-1 rounded text-[10px] border border-blue-800">
+                        Quick Save
+                    </button>
+                    <button onClick={onQuickLoad} className="bg-blue-900/50 hover:bg-blue-800 text-blue-100 px-2 py-1 rounded text-[10px] border border-blue-800">
+                        Quick Load
+                    </button>
+                    <button onClick={onSave} className="bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded text-[10px]">
+                        Save File
+                    </button>
+                    <button onClick={onLoad} className="bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded text-[10px]">
+                        Load File
+                    </button>
+                </div>
                 <button 
                     onClick={onReset}
-                    className="bg-gray-700 hover:bg-red-800 text-white px-3 py-1 rounded transition w-full"
+                    className="bg-red-900/50 hover:bg-red-800 text-red-100 px-3 py-1 rounded transition w-full border border-red-800"
                 >
                     Reset World
                 </button>

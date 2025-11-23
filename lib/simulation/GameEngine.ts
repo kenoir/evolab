@@ -29,15 +29,40 @@ export interface GameStatsRefs {
     histDefense: HTMLCanvasElement | null;
 }
 
-interface Vector {
+export interface Vector {
     x: number;
     y: number;
 }
 
-interface Zone {
+export interface Zone {
     pos: Vector;
     radius: number;
     vel: Vector;
+}
+
+export interface GameState {
+    meta: {
+        version: string;
+        date: string;
+    };
+    config: GameConfig;
+    world: {
+        size: number;
+        simSpeed: number;
+        flags: {
+            predation: boolean;
+            zones: boolean;
+            debug: boolean;
+        };
+        camera: { x: number; y: number; zoom: number };
+    };
+    environment: {
+        zones: Zone[];
+    };
+    entities: {
+        organisms: number[][];
+        food: number[][];
+    };
 }
 
 export class GameEngine {
@@ -720,6 +745,103 @@ export class GameEngine {
         if (this.onFollowChange) {
             this.onFollowChange(this.followedIndex !== -1);
         }
+        this.draw();
+    }
+
+    public exportState(): GameState {
+        const organisms: number[][] = [];
+        for(let i=0; i<this.MAX_POP; i++) {
+            if(this.oActive[i]) {
+                organisms.push([
+                    this.oX[i], this.oY[i], this.oVX[i], this.oVY[i], this.oEnergy[i],
+                    this.gSpeed[i], this.gSize[i], this.gSense[i], this.gRepro[i],
+                    this.gWander[i], this.gDefense[i], this.gMeta[i], this.gHue[i]
+                ]);
+            }
+        }
+
+        const food: number[][] = [];
+        for(let i=0; i<this.MAX_FOOD; i++) {
+            if(this.fActive[i]) {
+                food.push([this.fX[i], this.fY[i]]);
+            }
+        }
+
+        return {
+            meta: {
+                version: "1.0",
+                date: new Date().toISOString()
+            },
+            config: { ...this.config },
+            world: {
+                size: this.worldSize,
+                simSpeed: this.simSpeed,
+                flags: {
+                    predation: this.predationActive,
+                    zones: this.activeZones,
+                    debug: this.debugMode
+                },
+                camera: { ...this.camera }
+            },
+            environment: {
+                zones: JSON.parse(JSON.stringify(this.zones))
+            },
+            entities: {
+                organisms,
+                food
+            }
+        };
+    }
+
+    public importState(state: GameState) {
+        // Reset
+        this.activeCount = 0;
+        this.foodCount = 0;
+        this.oFreePtr = this.MAX_POP - 1;
+        for(let i=0; i<this.MAX_POP; i++) { this.oFree[i] = this.MAX_POP - 1 - i; this.oActive[i] = 0; }
+        this.fFreePtr = this.MAX_FOOD - 1; 
+        for(let i=0; i<this.MAX_FOOD; i++) { this.fFree[i] = this.MAX_FOOD - 1 - i; this.fActive[i] = 0; }
+        
+        // Load Config & World
+        this.config = state.config;
+        this.worldSize = state.world.size;
+        this.simSpeed = state.world.simSpeed;
+        this.predationActive = state.world.flags.predation;
+        this.activeZones = state.world.flags.zones;
+        this.debugMode = state.world.flags.debug;
+        this.camera = state.world.camera;
+        this.zones = state.environment.zones;
+
+        // Load Organisms
+        for(const org of state.entities.organisms) {
+            if (this.oFreePtr < 0) break;
+            const idx = this.oFree[this.oFreePtr--];
+            this.oActive[idx] = 1;
+            this.activeCount++;
+
+            this.oX[idx] = org[0]; this.oY[idx] = org[1];
+            this.oVX[idx] = org[2]; this.oVY[idx] = org[3];
+            this.oEnergy[idx] = org[4];
+            this.gSpeed[idx] = org[5];
+            this.gSize[idx] = org[6];
+            this.gSense[idx] = org[7];
+            this.gRepro[idx] = org[8];
+            this.gWander[idx] = org[9];
+            this.gDefense[idx] = org[10];
+            this.gMeta[idx] = org[11];
+            this.gHue[idx] = org[12];
+        }
+
+        // Load Food
+        for(const f of state.entities.food) {
+            if (this.fFreePtr < 0) break;
+            const idx = this.fFree[this.fFreePtr--];
+            this.fActive[idx] = 1;
+            this.fX[idx] = f[0]; this.fY[idx] = f[1];
+            this.foodCount++;
+        }
+
+        this.resize(this.canvas.width, this.canvas.height); // Re-clamp camera
         this.draw();
     }
 

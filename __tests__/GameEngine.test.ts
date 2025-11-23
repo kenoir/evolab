@@ -68,6 +68,45 @@ describe('GameEngine', () => {
         expect(engine.paused).toBe(true);
     });
 
+    it('should export and import state correctly', () => {
+        const engine = new GameEngine(canvas, minimap, statsRefs);
+        engine.init();
+        
+        // Force a specific state for an organism
+        // We need to access private members for testing, casting to any
+        const anyEngine = engine as any;
+        
+        // Ensure at least one organism is active and set its position
+        anyEngine.oActive[0] = 1;
+        anyEngine.oX[0] = 1234;
+        anyEngine.oY[0] = 5678;
+        anyEngine.activeCount = 1; // Ensure count matches
+        
+        const state = engine.exportState();
+        expect(state.entities.organisms.length).toBeGreaterThan(0);
+        const savedOrg = state.entities.organisms.find(o => o[0] === 1234 && o[1] === 5678);
+        expect(savedOrg).toBeDefined();
+        
+        // Reset engine to clear state
+        engine.init();
+        // Verify it's different (randomized)
+        expect(anyEngine.oX[0]).not.toBe(1234);
+        
+        // Import
+        engine.importState(state);
+        
+        // Verify restoration
+        // Note: Import might not put it at index 0, but it should be in the array
+        let found = false;
+        for(let i=0; i<anyEngine.MAX_POP; i++) {
+            if (anyEngine.oActive[i] && anyEngine.oX[i] === 1234 && anyEngine.oY[i] === 5678) {
+                found = true;
+                break;
+            }
+        }
+        expect(found).toBe(true);
+    });
+
     it('should handle resize', () => {
         const engine = new GameEngine(canvas, minimap, statsRefs);
         engine.resize(1000, 800);
