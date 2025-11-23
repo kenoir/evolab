@@ -1,4 +1,4 @@
-# EvoLab - Next.js Edition
+# EvoLab
 
 An evolution game (barely) ...
 
