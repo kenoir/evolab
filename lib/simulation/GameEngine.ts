@@ -68,6 +68,7 @@ export class GameEngine {
     // Camera
     public camera = { x: 0, y: 0, zoom: 0.5 };
     public keys: { [key: string]: boolean } = {};
+    private followedIndex: number = -1;
     
     // Config
     public config: GameConfig = {
@@ -244,6 +245,10 @@ export class GameEngine {
 
     public handleKeyDown(code: string) {
         this.keys[code] = true;
+        if (code === 'ArrowUp' || code === 'KeyW' || code === 'ArrowDown' || code === 'KeyS' || 
+            code === 'ArrowLeft' || code === 'KeyA' || code === 'ArrowRight' || code === 'KeyD') {
+            this.followedIndex = -1;
+        }
     }
 
     public handleKeyUp(code: string) {
@@ -260,9 +265,21 @@ export class GameEngine {
         if (this.keys['Equal'] || this.keys['NumpadAdd']) this.camera.zoom = Math.min(3, this.camera.zoom * 1.02);
         if (this.keys['Minus'] || this.keys['NumpadSubtract']) this.camera.zoom = Math.max(0.1, this.camera.zoom * 0.98);
     
+        if (this.followedIndex !== -1) {
+            if (this.oActive[this.followedIndex]) {
+                const viewW = this.canvas.width / this.camera.zoom;
+                const viewH = this.canvas.height / this.camera.zoom;
+                this.camera.x = this.oX[this.followedIndex] - viewW / 2;
+                this.camera.y = this.oY[this.followedIndex] - viewH / 2;
+            } else {
+                this.followedIndex = -1;
+            }
+        }
+
         if (this.keys['ArrowUp'] || this.keys['KeyW'] || this.keys['ArrowDown'] || this.keys['KeyS'] || 
             this.keys['ArrowLeft'] || this.keys['KeyA'] || this.keys['ArrowRight'] || this.keys['KeyD'] ||
-            this.keys['Equal'] || this.keys['NumpadAdd'] || this.keys['Minus'] || this.keys['NumpadSubtract']) {
+            this.keys['Equal'] || this.keys['NumpadAdd'] || this.keys['Minus'] || this.keys['NumpadSubtract'] ||
+            this.followedIndex !== -1) {
             this.clampCamera();
         }
     }
@@ -481,7 +498,18 @@ export class GameEngine {
                 if (bestFood >= 0) {
                     let v = this.getWrappedVector(this.oX[i], this.oY[i], tx, ty);
                     const dist = Math.sqrt(v.x*v.x + v.y*v.y);
-                    if (dist > 0) { accX = (v.x/dist) * 0.25; accY = (v.y/dist) * 0.25; }
+                    if (dist > 0) { 
+                        // Improved steering: proportional force + arrival braking
+                        const steerForce = Math.max(0.25, this.gSpeed[i] * 0.2);
+                        accX = (v.x/dist) * steerForce; 
+                        accY = (v.y/dist) * steerForce;
+                        
+                        // Brake if we are close and moving fast to avoid orbiting
+                        if (dist < this.gSize[i] * 2) {
+                            this.oVX[i] *= 0.85;
+                            this.oVY[i] *= 0.85;
+                        }
+                    }
                 } else {
                     const ag = this.gWander[i];
                     accX = (Math.random()-0.5) * ag; accY = (Math.random()-0.5) * ag;
@@ -606,6 +634,32 @@ export class GameEngine {
         const worldY = (y / this.camera.zoom) + this.camera.y;
         let wx = worldX % this.worldSize; let wy = worldY % this.worldSize;
         if (wx < 0) wx += this.worldSize; if (wy < 0) wy += this.worldSize;
+
+        // Check for organism click
+        let clickedOrg = -1;
+        let minDist = Infinity;
+        const clickRadius = 20 / this.camera.zoom;
+
+        // Simple linear search for click (could be optimized with grid but pop is manageable)
+        // We need to check wrapped distance
+        for(let i=0; i<this.MAX_POP; i++) {
+            if(this.oActive[i]) {
+                const d = this.getWrappedDist(wx, wy, this.oX[i], this.oY[i]);
+                if (d < this.gSize[i] + clickRadius) {
+                    if (d < minDist) {
+                        minDist = d;
+                        clickedOrg = i;
+                    }
+                }
+            }
+        }
+
+        if (clickedOrg !== -1) {
+            this.followedIndex = clickedOrg;
+            return;
+        }
+
+        this.followedIndex = -1;
         for(let i=0; i<3; i++) this.spawnFood(wx + (Math.random()-0.5)*50, wy + (Math.random()-0.5)*50);
     }
 
@@ -688,6 +742,8 @@ export class GameEngine {
         this.ctx.fill();
     
         const lowDetail = this.camera.zoom < 0.4;
+        const highDetail = this.camera.zoom > 1.5;
+
         for (let i=0; i<this.MAX_POP; i++) {
             if (!this.oActive[i]) continue;
             let dx = Math.abs(this.oX[i] - camCX); let dy = Math.abs(this.oY[i] - camCY);
@@ -704,8 +760,12 @@ export class GameEngine {
                         this.ctx.beginPath(); this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
                         this.ctx.arc(x, y, this.gSense[i], 0, Math.PI*2); this.ctx.stroke();
                     }
+                    
+                    // Base Body
+                    this.ctx.fillStyle = `hsl(${this.gHue[i]}, 70%, 50%)`;
+                    
+                    // Spikes / Defense
                     if (this.gDefense[i] > 0.2) {
-                        this.ctx.fillStyle = `hsl(${this.gHue[i]}, 70%, 50%)`;
                         this.ctx.beginPath();
                         const spikeLen = this.gDefense[i] * 6;
                         for(let j=0; j<5; j++) {
@@ -714,8 +774,76 @@ export class GameEngine {
                         }
                         this.ctx.fill();
                     }
-                    this.ctx.beginPath(); this.ctx.fillStyle = `hsl(${this.gHue[i]}, 70%, 50%)`;
-                    this.ctx.arc(x, y, this.gSize[i], 0, Math.PI*2); this.ctx.fill();
+
+                    // Main Body Circle
+                    this.ctx.beginPath(); 
+                    // Pulse effect for high metabolism
+                    let pulse = 0;
+                    if (highDetail) {
+                        pulse = Math.sin(this.frameCount * 0.2 * this.gMeta[i]) * 1.5;
+                    }
+                    this.ctx.arc(x, y, this.gSize[i] + pulse, 0, Math.PI*2); 
+                    this.ctx.fill();
+                    
+                    // High Detail Features
+                    if (highDetail) {
+                        // Eyes (Sense)
+                        const eyeCount = Math.floor(this.gSense[i] / 60) + 1;
+                        const eyeSize = Math.min(this.gSize[i] * 0.3, 4);
+                        const eyeDist = this.gSize[i] * 0.6;
+                        
+                        // Calculate facing angle from velocity
+                        const angle = Math.atan2(this.oVY[i], this.oVX[i]);
+                        
+                        this.ctx.fillStyle = 'white';
+                        for(let e=0; e<eyeCount; e++) {
+                            // Spread eyes around the front
+                            const eyeAngle = angle + (e - (eyeCount-1)/2) * 0.5;
+                            const ex = x + Math.cos(eyeAngle) * eyeDist;
+                            const ey = y + Math.sin(eyeAngle) * eyeDist;
+                            this.ctx.beginPath(); this.ctx.arc(ex, ey, eyeSize, 0, Math.PI*2); this.ctx.fill();
+                            
+                            // Pupil
+                            this.ctx.fillStyle = 'black';
+                            this.ctx.beginPath(); this.ctx.arc(ex + Math.cos(angle), ey + Math.sin(angle), eyeSize*0.4, 0, Math.PI*2); this.ctx.fill();
+                            this.ctx.fillStyle = 'white';
+                        }
+
+                        // Tail (Speed)
+                        if (this.gSpeed[i] > 2.0) {
+                            this.ctx.strokeStyle = `hsl(${this.gHue[i]}, 70%, 40%)`;
+                            this.ctx.lineWidth = Math.max(1, this.gSize[i] * 0.2);
+                            this.ctx.beginPath();
+                            this.ctx.moveTo(x - Math.cos(angle)*this.gSize[i], y - Math.sin(angle)*this.gSize[i]);
+                            
+                            const tailLen = this.gSpeed[i] * 3;
+                            const wiggle = Math.sin(this.frameCount * 0.5) * 5;
+                            const tx = x - Math.cos(angle)*(this.gSize[i] + tailLen) + Math.cos(angle + Math.PI/2) * wiggle;
+                            const ty = y - Math.sin(angle)*(this.gSize[i] + tailLen) + Math.sin(angle + Math.PI/2) * wiggle;
+                            
+                            this.ctx.quadraticCurveTo(
+                                x - Math.cos(angle)*(this.gSize[i] + tailLen/2), 
+                                y - Math.sin(angle)*(this.gSize[i] + tailLen/2),
+                                tx, ty
+                            );
+                            this.ctx.stroke();
+                        }
+                    }
+
+                    // Selection Highlight
+                    if (i === this.followedIndex) {
+                        this.ctx.strokeStyle = '#fff';
+                        this.ctx.lineWidth = 2;
+                        this.ctx.beginPath();
+                        this.ctx.arc(x, y, this.gSize[i] + 10, 0, Math.PI*2);
+                        this.ctx.stroke();
+                        
+                        // Draw stats text
+                        this.ctx.fillStyle = 'white';
+                        this.ctx.font = '10px monospace';
+                        this.ctx.fillText(`E:${Math.floor(this.oEnergy[i])}`, x + this.gSize[i] + 5, y - 10);
+                        this.ctx.fillText(`S:${this.gSpeed[i].toFixed(1)}`, x + this.gSize[i] + 5, y);
+                    }
                     
                     if (this.oEnergy[i] > this.gRepro[i] * 0.8) {
                         this.ctx.strokeStyle = 'rgba(255,255,255,0.5)'; this.ctx.lineWidth = 2;

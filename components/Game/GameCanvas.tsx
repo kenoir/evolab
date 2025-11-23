@@ -24,6 +24,7 @@ export default function GameCanvas() {
     const histDefenseRef = useRef<HTMLCanvasElement>(null);
 
     const [isPaused, setIsPaused] = React.useState(false);
+    const [ambientMode, setAmbientMode] = React.useState(false);
 
     const togglePause = React.useCallback(() => {
         if (!engineRef.current) return;
@@ -93,6 +94,9 @@ export default function GameCanvas() {
         const handleSpace = (e: KeyboardEvent) => {
             if (e.code === 'Space') {
                 togglePause();
+            }
+            if (e.code === 'KeyH') {
+                setAmbientMode(prev => !prev);
             }
         };
         window.addEventListener('keydown', handleSpace);
@@ -213,7 +217,7 @@ export default function GameCanvas() {
     return (
         <div ref={containerRef} className="relative w-full h-screen overflow-hidden bg-[#1a1a1a] text-[#e0e0e0] font-sans select-none">
             {/* UI Layer */}
-            <div className="absolute top-0 left-0 w-full h-full pointer-events-none flex flex-col justify-between p-4 z-20">
+            <div className={`absolute top-0 left-0 w-full h-full pointer-events-none flex flex-col justify-between p-4 z-20 transition-opacity duration-500 ${ambientMode ? 'opacity-0' : 'opacity-100'}`}>
                 <div className="flex flex-wrap justify-between items-start gap-4">
                     <StatsPanel 
                         fpsRef={fpsRef} popRef={popRef} foodRef={foodRef} zoneRef={zoneRef}
