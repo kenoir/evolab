@@ -2,6 +2,10 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Game Controls', () => {
   test.beforeEach(async ({ page }) => {
+    // Set local storage before navigation to skip welcome modal
+    await page.addInitScript(() => {
+      localStorage.setItem('evolab_skip_welcome', 'true');
+    });
     await page.goto('/');
   });
 

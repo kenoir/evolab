@@ -73,7 +73,8 @@ describe('GameEngine', () => {
         engine.init();
         
         // Force a specific state for an organism
-        // We need to access private members for testing, casting to any
+        // We need to access private members for testing
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const anyEngine = engine as any;
         
         // Ensure at least one organism is active and set its position
